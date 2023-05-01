@@ -1,14 +1,6 @@
-FROM php:7.4.6-fpm-alpine
+FROM php:8.0-fpm-alpine
 
-ENV LD_PRELOAD /usr/lib/preloadable_libiconv.so php
-
-RUN apk update \
-    # Make sure we use a version of iconv that works.
-    # https://github.com/docker-library/php/issues/240#issuecomment-876464325
-    && apk add gnu-libiconv=1.15-r3 --no-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.13/community/ --allow-untrusted \
-    && apk add --no-cache \
-        # build
-        gcc make musl-dev php7-dev \
+RUN apk add --update --no-cache $PHPIZE_DEPS\
         # for intl extension
         icu \
         icu-dev \
@@ -23,6 +15,8 @@ RUN apk update \
         libmemcached-dev \
         # syslogd
         rsyslog \
+        # for xdebug
+        linux-headers \
     # pecl installs
     && pecl install apcu \
     && pecl install memcached \
@@ -48,18 +42,19 @@ RUN apk update \
         intl \
     # cleanup
     && apk del \
-        gcc make musl-dev php7-dev \
-        icu-dev \
         freetype-dev libjpeg-turbo-dev libpng-dev libwebp-dev libxpm-dev \
+        icu-dev\
         oniguruma-dev \
         libmemcached-dev \
     && pecl clear-cache
 COPY ./conf/00-php.ini /usr/local/etc/php/conf.d/00-php.ini
 COPY ./conf/www.conf /usr/local/etc/php-fpm.d/www.conf
 
-RUN sed -i '/imklog/s/^/#/' /etc/rsyslog.conf
 RUN touch /var/log/syslog
+RUN sed -i '/imklog/s/^/#/' /etc/rsyslog.conf
+
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 CMD ["/docker-entrypoint.sh"]
